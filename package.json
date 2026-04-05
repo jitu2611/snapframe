@@ -1,0 +1,30 @@
+{
+  "name": "snapframe",
+  "version": "1.0.0",
+  "description": "Open-source screenshot beautifier with AI style suggestions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "screenshot",
+    "beautifier",
+    "device-frame",
+    "canvas",
+    "ai",
+    "claude",
+    "open-source"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jitu2611/snapframe.git"
+  }
+}

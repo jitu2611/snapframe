@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnapFrame — Screenshot Beautifier</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0c0c0e;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --accent: #7c6df8;
+      --accent2: #e85d9f;
+      --text: #e8e8f0;
+      --muted: #7a7a90;
+      --radius: 12px;
+      --sidebar: 280px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top Bar ──────────────────────────────────────── */
+    .topbar {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .brand-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 20px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .topbar-spacer { flex: 1; }
+    .topbar-btn {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.15s;
+    }
+    .topbar-btn:hover { border-color: var(--accent); }
+    .topbar-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .topbar-btn.primary:hover { opacity: 0.85; }
+
+    /* ── Main Layout ──────────────────────────────────── */
+    .layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 10px 14px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    .panel-header .chevron { transition: transform 0.2s; }
+    .panel-header.collapsed .chevron { transform: rotate(-90deg); }
+    .panel-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .panel-body.hidden { display: none; }
+
+    /* Form controls */
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .range-row input[type="range"] { flex: 1; }
+    .range-val {
+      min-width: 32px;
+      text-align: right;
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    input[type="color"] {
+      width: 100%;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+      padding: 2px;
+    }
+    select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* Pill grid */
+    .pill-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .pill-grid.col2 { grid-template-columns: repeat(2, 1fr); }
+    .pill {
+      padding: 7px 4px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.12s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pill:hover { border-color: var(--accent); color: var(--text); }
+    .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* Color swatches */
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+    .swatch {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.12s, transform 0.1s;
+    }
+    .swatch:hover { transform: scale(1.08); }
+    .swatch.active { border-color: #fff; }
+
+    /* Gradient presets */
+    .grad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .grad-swatch {
+      height: 36px;
+      border-radius: 7px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.12s, transform 0.1s;
+    }
+    .grad-swatch:hover { transform: scale(1.04); }
+    .grad-swatch.active { border-color: #fff; }
+
+    /* AI panel */
+    .ai-panel {
+      background: linear-gradient(135deg, #0d0b1f 0%, #160d2a 100%);
+      border: 1px solid #3a2a6a;
+    }
+    .ai-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s;
+    }
+    .ai-btn:hover { opacity: 0.88; }
+    .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ai-result {
+      background: rgba(124,109,248,0.1);
+      border: 1px solid rgba(124,109,248,0.25);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      color: #c4b8ff;
+      line-height: 1.5;
+      display: none;
+    }
+    .ai-result.show { display: block; }
+    .api-key-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+    }
+    .api-key-input:focus { border-color: var(--accent); }
+    .api-key-input::placeholder { color: var(--muted); }
+
+    /* Toggle */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: #333; border-radius: 20px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 3px;
+      background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* ── Canvas area ──────────────────────────────────── */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(124,109,248,0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(232,93,159,0.05) 0%, transparent 50%),
+        var(--bg);
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      z-index: 2;
+    }
+    .drop-zone.hidden { display: none; }
+    .drop-icon {
+      width: 72px; height: 72px;
+      background: var(--surface2);
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      transition: all 0.2s;
+    }
+    .drop-zone.dragging .drop-icon {
+      border-color: var(--accent);
+      background: rgba(124,109,248,0.08);
+    }
+    .drop-zone h2 { font-size: 18px; font-weight: 600; }
+    .drop-zone p { font-size: 13px; color: var(--muted); }
+    .upload-btn {
+      padding: 10px 24px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .upload-btn:hover { opacity: 0.85; }
+
+    /* Canvas wrapper */
+    #canvasWrapper {
+      position: relative;
+      display: none;
+    }
+    #outputCanvas {
+      display: block;
+      border-radius: 4px;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+      max-width: 100%;
+      max-height: calc(100vh - 100px);
+      image-rendering: auto;
+    }
+
+    /* Drag overlay */
+    .drag-overlay {
+      position: fixed; inset: 0;
+      background: rgba(124,109,248,0.12);
+      border: 3px dashed var(--accent);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+      pointer-events: none;
+    }
+    .drag-overlay.show { display: flex; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 999;
+      opacity: 0;
+      transition: all 0.25s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🖼</div>
+    SnapFrame
+  </div>
+  <span class="badge">Open Source</span>
+  <div class="topbar-spacer"></div>
+  <button class="topbar-btn" id="copyBtn" style="display:none">📋 Copy</button>
+  <button class="topbar-btn primary" id="downloadBtn" style="display:none">⬇ Download PNG</button>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Frame -->
+    <div class="panel">
+      <div class="panel-header" data-panel="frame">
+        Device Frame <span class="chevron">▾</span>
+      </div>
+      <div class="panel-body" id="panel-frame">
+        <div class="pill-grid" id="framePills">
+          <div class="pill active" data-frame="none">No Frame</div>
+          <div class="pill" data-frame="iphone">iPhone 15</div>
+          <div class="pill" data-frame="android">Android</div>
+          <div class="pill" data-frame="macbook">MacBook</div>
+          <div class="pill" data-frame="browser">Browser</div>
+          <div class="pill" data-frame="window">Window</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Background -->
+    <div class="panel">
+      <div class="panel-header" data-panel="bg">
+        Background <span class="chevron">▾</span>
+      </div>
+      <div class="panel-body" id="panel-bg">
+        <div class="pill-grid col2" id="bgTypePills">
+          <div class="pill active" data-bgtype="solid">Solid</div>
+          <div class="pill" data-bgtype="gradient">Gradient</div>
+          <div class="pill" data-bgtype="mesh">Mesh</div>
+          <div class="pill" data-bgtype="transparent">None</div>
+        </div>
+
+        <!-- Solid colors -->
+        <div id="solidSection">
+          <div class="swatch-grid" id="colorSwatches"></div>
+          <div style="margin-top:8px">
+            <label class="field">
+              <span class="field-label">Custom color</span>
+              <input type="color" id="customColor" value="#1a1a2e" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Gradient presets -->
+        <div id="gradientSection" style="display:none">
+          <div class="grad-grid" id="gradSwatches"></div>
+        </div>
+
+        <!-- Mesh -->
+        <div id="meshSection" style="display:none">
+          <div class="grad-grid" id="meshSwatches"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout -->
+    <div class="panel">
+      <div class="panel-header" data-panel="layout">
+        Layout <span class="chevron">▾</span>
+      </div>
+      <div class="panel-body" id="panel-layout">
+        <label class="field">
+          <span class="field-label">Padding</span>
+          <div class="range-row">
+            <input type="range" id="padding" min="0" max="200" value="60" />
+            <span class="range-val" id="paddingVal">60</span>
+          </div>
+        </label>
+        <label class="field">
+          <span class="field-label">Corner Radius</span>
+          <div class="range-row">
+            <input type="range" id="cornerRadius" min="0" max="40" value="12" />
+            <span class="range-val" id="cornerVal">12</span>
+          </div>
+        </label>
+        <label class="field">
+          <span class="field-label">Scale</span>
+          <div class="range-row">
+            <input type="range" id="scale" min="50" max="150" value="100" />
+            <span class="range-val" id="scaleVal">100%</span>
+          </div>
+        </label>
+        <div class="toggle-row">
+          <span class="field-label" style="font-size:12px">Drop Shadow</span>
+          <label class="toggle">
+            <input type="checkbox" id="shadowToggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="shadowControls">
+          <label class="field">
+            <span class="field-label">Shadow Blur</span>
+            <div class="range-row">
+              <input type="range" id="shadowBlur" min="0" max="80" value="32" />
+              <span class="range-val" id="shadowBlurVal">32</span>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field-label">Shadow Opacity</span>
+            <div class="range-row">
+              <input type="range" id="shadowOpacity" min="0" max="100" value="50" />
+              <span class="range-val" id="shadowOpacityVal">50%</span>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aspect Ratio -->
+    <div class="panel">
+      <div class="panel-header" data-panel="aspect">
+        Canvas Size <span class="chevron">▾</span>
+      </div>
+      <div class="panel-body" id="panel-aspect">
+        <div class="pill-grid" id="aspectPills">
+          <div class="pill active" data-aspect="auto">Auto</div>
+          <div class="pill" data-aspect="1:1">1:1</div>
+          <div class="pill" data-aspect="16:9">16:9</div>
+          <div class="pill" data-aspect="4:3">4:3</div>
+          <div class="pill" data-aspect="twitter">Twitter</div>
+          <div class="pill" data-aspect="og">OG Image</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Style -->
+    <div class="panel ai-panel">
+      <div class="panel-header" data-panel="ai" style="color:#c4b8ff; border-color:#3a2a6a">
+        ✨ AI Style Suggest <span class="chevron" style="color:#c4b8ff">▾</span>
+      </div>
+      <div class="panel-body" id="panel-ai">
+        <input class="api-key-input" type="password" id="aiApiKey" placeholder="Anthropic API key (sk-ant-...)" />
+        <p style="font-size:10px; color:#6a5a8a; line-height:1.4">
+          Optional. Claude analyzes your screenshot and recommends the best style. Key stored locally only.
+        </p>
+        <button class="ai-btn" id="aiSuggestBtn">
+          <span class="btn-label">✨ Suggest Style</span>
+        </button>
+        <div class="ai-result" id="aiResult"></div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- Canvas Area -->
+  <div class="canvas-area" id="canvasArea">
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">📸</div>
+      <h2>Drop your screenshot here</h2>
+      <p>Supports PNG, JPG, WEBP, GIF</p>
+      <button class="upload-btn" id="uploadBtn">Browse file</button>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" />
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvasWrapper">
+      <canvas id="outputCanvas"></canvas>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<!-- Drag overlay -->
+<div class="drag-overlay" id="dragOverlay">Drop screenshot to beautify ✨</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+const state = {
+  image: null,
+  frame: 'none',
+  bgType: 'solid',
+  bgColor: '#1a1a2e',
+  bgGradient: null,
+  padding: 60,
+  cornerRadius: 12,
+  scale: 100,
+  shadow: true,
+  shadowBlur: 32,
+  shadowOpacity: 50,
+  aspect: 'auto',
+};
+
+// ── Color/Gradient Data ────────────────────────────────
+const SOLID_COLORS = [
+  '#0f0c29','#1a1a2e','#16213e','#0d1b2a','#1b1b2f',
+  '#2d1b33','#1a0a2e','#0a1628','#111111','#1e1e1e',
+  '#f8f9fa','#e9ecef','#fff5ee','#fef9ef','#fff0f6',
+  '#e8f5e9','#e3f2fd','#fce4ec','#f3e5f5','#e0f7fa',
+];
+
+const GRADIENTS = [
+  { name: 'Aurora', css: 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)' },
+  { name: 'Sunset', css: 'linear-gradient(135deg,#f093fb 0%,#f5576c 100%)' },
+  { name: 'Ocean', css: 'linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)' },
+  { name: 'Lime', css: 'linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)' },
+  { name: 'Peach', css: 'linear-gradient(135deg,#fa709a 0%,#fee140 100%)' },
+  { name: 'Midnight', css: 'linear-gradient(135deg,#0c3483 0%,#a2b6df 100%)' },
+  { name: 'Rose', css: 'linear-gradient(135deg,#f6d365 0%,#fda085 100%)' },
+  { name: 'Violet', css: 'linear-gradient(135deg,#a18cd1 0%,#fbc2eb 100%)' },
+  { name: 'Mint', css: 'linear-gradient(135deg,#84fab0 0%,#8fd3f4 100%)' },
+];
+
+const MESHES = [
+  { name: 'Purple Haze', colors: ['#1a0533','#3d1060','#6b21a8','#1e1b4b'] },
+  { name: 'Dark Ocean', colors: ['#0c1445','#0d2268','#1e3a8a','#0a0f2e'] },
+  { name: 'Forest', colors: ['#052e16','#14532d','#065f46','#022c22'] },
+  { name: 'Ember', colors: ['#450a0a','#7f1d1d','#991b1b','#1c0606'] },
+  { name: 'Dusk', colors: ['#1e1b4b','#312e81','#4c1d95','#0f172a'] },
+  { name: 'Monochrome', colors: ['#111111','#1f1f1f','#2a2a2a','#0a0a0a'] },
+];
+
+// ── DOM refs ───────────────────────────────────────────
+const canvas = document.getElementById('outputCanvas');
+const ctx = canvas.getContext('2d');
+const dropZone = document.getElementById('dropZone');
+const canvasWrapper = document.getElementById('canvasWrapper');
+const fileInput = document.getElementById('fileInput');
+
+// ── Init UI ────────────────────────────────────────────
+function initSwatches() {
+  const grid = document.getElementById('colorSwatches');
+  SOLID_COLORS.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (i === 1 ? ' active' : '');
+    el.style.background = c;
+    el.title = c;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      state.bgColor = c;
+      document.getElementById('customColor').value = c;
+      render();
+    });
+    grid.appendChild(el);
+  });
+
+  const gradGrid = document.getElementById('gradSwatches');
+  GRADIENTS.forEach((g, i) => {
+    const el = document.createElement('div');
+    el.className = 'grad-swatch' + (i === 0 ? ' active' : '');
+    el.style.background = g.css;
+    el.title = g.name;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.grad-swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      state.bgGradient = g;
+      render();
+    });
+    gradGrid.appendChild(el);
+  });
+  state.bgGradient = GRADIENTS[0];
+
+  const meshGrid = document.getElementById('meshSwatches');
+  MESHES.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'grad-swatch' + (i === 0 ? ' active' : '');
+    const [c1, c2, c3, c4] = m.colors;
+    el.style.background = `radial-gradient(ellipse at top left, ${c2} 0%, transparent 60%), radial-gradient(ellipse at bottom right, ${c3} 0%, transparent 60%), ${c1}`;
+    el.title = m.name;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('#meshSwatches .grad-swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      state.bgMesh = m;
+      render();
+    });
+    meshGrid.appendChild(el);
+  });
+  state.bgMesh = MESHES[0];
+}
+
+function initControls() {
+  // Panels toggle
+  document.querySelectorAll('.panel-header').forEach(h => {
+    h.addEventListener('click', () => {
+      const id = 'panel-' + h.dataset.panel;
+      const body = document.getElementById(id);
+      h.classList.toggle('collapsed');
+      body.classList.toggle('hidden');
+    });
+  });
+
+  // Frame pills
+  document.querySelectorAll('#framePills .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('#framePills .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state.frame = p.dataset.frame;
+      render();
+    });
+  });
+
+  // BG type pills
+  document.querySelectorAll('#bgTypePills .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('#bgTypePills .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state.bgType = p.dataset.bgtype;
+      document.getElementById('solidSection').style.display = state.bgType === 'solid' ? '' : 'none';
+      document.getElementById('gradientSection').style.display = state.bgType === 'gradient' ? '' : 'none';
+      document.getElementById('meshSection').style.display = state.bgType === 'mesh' ? '' : 'none';
+      render();
+    });
+  });
+
+  // Aspect pills
+  document.querySelectorAll('#aspectPills .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('#aspectPills .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state.aspect = p.dataset.aspect;
+      render();
+    });
+  });
+
+  // Sliders
+  [
+    ['padding', 'paddingVal', v => v],
+    ['cornerRadius', 'cornerVal', v => v],
+    ['scale', 'scaleVal', v => v + '%'],
+    ['shadowBlur', 'shadowBlurVal', v => v],
+    ['shadowOpacity', 'shadowOpacityVal', v => v + '%'],
+  ].forEach(([id, valId, fmt]) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      document.getElementById(valId).textContent = fmt(el.value);
+      state[id] = Number(el.value);
+      render();
+    });
+  });
+
+  // Custom color
+  document.getElementById('customColor').addEventListener('input', (e) => {
+    state.bgColor = e.target.value;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    render();
+  });
+
+  // Shadow toggle
+  document.getElementById('shadowToggle').addEventListener('change', (e) => {
+    state.shadow = e.target.checked;
+    document.getElementById('shadowControls').style.display = state.shadow ? '' : 'none';
+    render();
+  });
+
+  // Upload
+  document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => loadFile(e.target.files[0]));
+
+  // Download
+  document.getElementById('downloadBtn').addEventListener('click', downloadPNG);
+  document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+
+  // AI
+  document.getElementById('aiSuggestBtn').addEventListener('click', aiSuggest);
+
+  // Restore saved API key
+  const saved = localStorage.getItem('snapframe_api_key');
+  if (saved) document.getElementById('aiApiKey').value = saved;
+}
+
+function initDragDrop() {
+  const area = document.getElementById('canvasArea');
+  const overlay = document.getElementById('dragOverlay');
+
+  ['dragenter','dragover'].forEach(ev => {
+    document.body.addEventListener(ev, (e) => {
+      e.preventDefault();
+      overlay.classList.add('show');
+      dropZone.classList.add('dragging');
+    });
+  });
+
+  ['dragleave','drop'].forEach(ev => {
+    document.body.addEventListener(ev, (e) => {
+      e.preventDefault();
+      overlay.classList.remove('show');
+      dropZone.classList.remove('dragging');
+    });
+  });
+
+  document.body.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadFile(file);
+  });
+
+  // Paste
+  document.addEventListener('paste', (e) => {
+    const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+    if (item) loadFile(item.getAsFile());
+  });
+}
+
+// ── Image loading ──────────────────────────────────────
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      state.image = img;
+      dropZone.classList.add('hidden');
+      canvasWrapper.style.display = '';
+      document.getElementById('downloadBtn').style.display = '';
+      document.getElementById('copyBtn').style.display = '';
+      render();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Rendering ──────────────────────────────────────────
+function render() {
+  if (!state.image) return;
+  const img = state.image;
+  const pad = state.padding;
+  const scale = state.scale / 100;
+
+  const sw = Math.round(img.width * scale);
+  const sh = Math.round(img.height * scale);
+
+  // Canvas dimensions
+  let cw, ch;
+  const ASPECT_MAP = {
+    'auto': null,
+    '1:1': 1,
+    '16:9': 16/9,
+    '4:3': 4/3,
+    'twitter': 1200/675,
+    'og': 1200/630,
+  };
+
+  const ratio = ASPECT_MAP[state.aspect];
+  if (ratio) {
+    const baseW = sw + pad * 2;
+    const baseH = sh + pad * 2;
+    if (baseW / baseH > ratio) {
+      cw = baseW;
+      ch = Math.round(cw / ratio);
+    } else {
+      ch = baseH;
+      cw = Math.round(ch * ratio);
+    }
+  } else {
+    cw = sw + pad * 2;
+    ch = sh + pad * 2;
+  }
+
+  canvas.width = cw;
+  canvas.height = ch;
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Draw background
+  drawBackground(cw, ch);
+
+  // Image position (centered)
+  const ix = (cw - sw) / 2;
+  const iy = (ch - sh) / 2;
+  const cr = state.cornerRadius;
+
+  // Shadow
+  if (state.shadow) {
+    ctx.save();
+    ctx.shadowColor = `rgba(0,0,0,${state.shadowOpacity / 100})`;
+    ctx.shadowBlur = state.shadowBlur;
+    ctx.shadowOffsetY = state.shadowBlur * 0.3;
+    ctx.fillStyle = 'rgba(0,0,0,0.01)';
+    roundRect(ctx, ix, iy, sw, sh, cr);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw frame + image
+  ctx.save();
+  roundRect(ctx, ix, iy, sw, sh, cr);
+  ctx.clip();
+  ctx.drawImage(img, ix, iy, sw, sh);
+  ctx.restore();
+
+  // Draw device frame overlay
+  drawFrame(ix, iy, sw, sh, cr);
+
+  // Scale canvas for display
+  const maxW = document.getElementById('canvasArea').clientWidth - 48;
+  const maxH = document.getElementById('canvasArea').clientHeight - 48;
+  const displayScale = Math.min(1, maxW / cw, maxH / ch);
+  canvas.style.width = Math.round(cw * displayScale) + 'px';
+  canvas.style.height = Math.round(ch * displayScale) + 'px';
+}
+
+function drawBackground(w, h) {
+  if (state.bgType === 'transparent') return;
+
+  if (state.bgType === 'solid') {
+    ctx.fillStyle = state.bgColor;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (state.bgType === 'gradient' && state.bgGradient) {
+    // Parse the CSS gradient string to a canvas gradient
+    const gData = state.bgGradient;
+    const matches = gData.css.match(/#[0-9a-fA-F]{6}/g) || [];
+    if (matches.length >= 2) {
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      matches.forEach((c, i) => g.addColorStop(i / (matches.length - 1), c));
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = '#1a1a2e';
+    }
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (state.bgType === 'mesh' && state.bgMesh) {
+    const [c1, c2, c3, c4] = state.bgMesh.colors;
+    ctx.fillStyle = c1;
+    ctx.fillRect(0, 0, w, h);
+
+    // Soft radial blobs
+    const blobs = [
+      { cx: w * 0.2, cy: h * 0.2, r: w * 0.5, c: c2 },
+      { cx: w * 0.8, cy: h * 0.7, r: w * 0.45, c: c3 },
+      { cx: w * 0.5, cy: h * 0.9, r: w * 0.4, c: c4 },
+    ];
+    blobs.forEach(b => {
+      const g = ctx.createRadialGradient(b.cx, b.cy, 0, b.cx, b.cy, b.r);
+      g.addColorStop(0, b.c + 'cc');
+      g.addColorStop(1, b.c + '00');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    });
+    return;
+  }
+}
+
+function drawFrame(ix, iy, sw, sh, cr) {
+  if (state.frame === 'none') return;
+
+  const frame = state.frame;
+  ctx.save();
+
+  if (frame === 'browser' || frame === 'window') {
+    // Draw top chrome bar
+    const barH = Math.max(28, sh * 0.06);
+    ctx.fillStyle = frame === 'browser' ? '#2d2d2d' : '#3c3c3c';
+    ctx.beginPath();
+    ctx.roundRect
+      ? ctx.roundRect(ix, iy, sw, barH + cr, [cr, cr, 0, 0])
+      : roundRect(ctx, ix, iy, sw, barH, cr);
+    ctx.fill();
+
+    if (frame === 'browser') {
+      // Traffic light dots
+      const dotY = iy + barH / 2;
+      [['#ff5f56', ix + 14], ['#febc2e', ix + 30], ['#28c840', ix + 46]].forEach(([c, x]) => {
+        ctx.beginPath();
+        ctx.arc(x, dotY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = c;
+        ctx.fill();
+      });
+      // Address bar
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      const abW = sw * 0.45, abH = barH * 0.5, abX = ix + sw/2 - abW/2, abY = iy + barH/2 - abH/2;
+      roundRect(ctx, abX, abY, abW, abH, abH/2);
+      ctx.fill();
+    } else {
+      // Window buttons
+      const dotY = iy + barH / 2;
+      [ix+sw-14, ix+sw-30, ix+sw-46].forEach(x => {
+        ctx.beginPath();
+        ctx.arc(x, dotY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#555';
+        ctx.fill();
+      });
+    }
+  }
+
+  if (frame === 'iphone') {
+    const bw = 12, br = 40; // bezel width, border radius
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = bw;
+    ctx.beginPath();
+    roundRect(ctx, ix - bw/2, iy - bw/2, sw + bw, sh + bw, br);
+    ctx.stroke();
+    // Dynamic island
+    const diW = sw * 0.28, diH = 20, diX = ix + sw/2 - diW/2, diY = iy + 8;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    roundRect(ctx, diX, diY, diW, diH, diH/2);
+    ctx.fill();
+  }
+
+  if (frame === 'android') {
+    const bw = 14, br = 30;
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = bw;
+    ctx.beginPath();
+    roundRect(ctx, ix - bw/2, iy - bw/2, sw + bw, sh + bw, br);
+    ctx.stroke();
+    // Camera hole
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(ix + sw/2, iy + 14, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (frame === 'macbook') {
+    const bw = 16, br = 8, baseH = 20;
+    // Screen bezel
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    roundRect(ctx, ix - bw, iy - bw * 1.5, sw + bw * 2, sh + bw * 2, br + 4);
+    ctx.fill();
+    // Camera
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(ix + sw / 2, iy - bw * 0.7, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // Base
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.rect(ix - bw * 3, iy + sh + bw * 0.5, sw + bw * 6, baseH);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ── Export ─────────────────────────────────────────────
+function downloadPNG() {
+  const link = document.createElement('a');
+  link.download = 'snapframe-' + Date.now() + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('Downloaded!');
+}
+
+async function copyToClipboard() {
+  try {
+    canvas.toBlob(async (blob) => {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('Copied to clipboard!');
+    });
+  } catch {
+    showToast('Copy not supported in this browser');
+  }
+}
+
+// ── AI Suggest ─────────────────────────────────────────
+async function aiSuggest() {
+  const apiKey = document.getElementById('aiApiKey').value.trim();
+  if (!apiKey) { showToast('Add an Anthropic API key first'); return; }
+  if (!state.image) { showToast('Upload a screenshot first'); return; }
+
+  localStorage.setItem('snapframe_api_key', apiKey);
+
+  const btn = document.getElementById('aiSuggestBtn');
+  btn.disabled = true;
+  btn.querySelector('.btn-label').textContent = '';
+  btn.innerHTML = '<div class="spinner"></div> Analyzing...';
+
+  const resultEl = document.getElementById('aiResult');
+  resultEl.classList.remove('show');
+
+  try {
+    // Convert canvas image to base64 for analysis
+    const imageData = canvas.toDataURL('image/jpeg', 0.7);
+    const base64 = imageData.split(',')[1];
+
+    const res = await fetch('/api/ai-suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, imageData: base64 }),
+    });
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+
+    resultEl.innerHTML = data.suggestion
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    resultEl.classList.add('show');
+
+    // Auto-apply suggested settings if included
+    if (data.apply) applyAiSuggestion(data.apply);
+
+  } catch (err) {
+    resultEl.innerHTML = '⚠ ' + (err.message || 'Could not reach the AI server. Make sure you ran `npm start`.');
+    resultEl.classList.add('show');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="btn-label">✨ Suggest Style</span>';
+}
+
+function applyAiSuggestion(apply) {
+  if (apply.frame) {
+    state.frame = apply.frame;
+    document.querySelectorAll('#framePills .pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.frame === apply.frame);
+    });
+  }
+  if (apply.bgType) {
+    state.bgType = apply.bgType;
+    document.querySelectorAll('#bgTypePills .pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.bgtype === apply.bgType);
+    });
+    document.getElementById('solidSection').style.display = apply.bgType === 'solid' ? '' : 'none';
+    document.getElementById('gradientSection').style.display = apply.bgType === 'gradient' ? '' : 'none';
+    document.getElementById('meshSection').style.display = apply.bgType === 'mesh' ? '' : 'none';
+  }
+  if (apply.bgGradientIndex !== undefined) {
+    state.bgGradient = GRADIENTS[apply.bgGradientIndex];
+    document.querySelectorAll('.grad-swatch').forEach((s, i) => {
+      s.classList.toggle('active', i === apply.bgGradientIndex);
+    });
+  }
+  if (apply.padding !== undefined) {
+    state.padding = apply.padding;
+    document.getElementById('padding').value = apply.padding;
+    document.getElementById('paddingVal').textContent = apply.padding;
+  }
+  render();
+}
+
+// ── Toast ──────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Boot ───────────────────────────────────────────────
+initSwatches();
+initControls();
+initDragDrop();
+
+// Resize re-render
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 80);
+});
+</script>
+</body>
+</html>
