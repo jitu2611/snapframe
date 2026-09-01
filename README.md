@@ -17,6 +17,10 @@ The optional **AI style engine** (Claude) analyzes your screenshot and recommend
 
 ---
 
+## How it works
+
+![Local rendering flow](docs/rendering-flow.svg)
+
 ## Features
 
 | Feature | Details |
